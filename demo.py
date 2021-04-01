@@ -2,6 +2,7 @@ import asyncio
 import aiohttp
 import time
 
+from asyncio_throttle import Throttler
 
 websites = """https://www.youtube.com
 https://www.facebook.com
@@ -105,18 +106,20 @@ http://www.googleweblight.com
 http://www.answers.yahoo.com"""
 
 
-async def get(url):
+async def get(url, throttler):
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(url=url) as response:
                 resp = await response.read()
-                print("Successfully got url {} with response of length {}.".format(url, len(resp)))
+                async with throttler:
+                    print("Successfully got url {} with response of length {}.".format(url, len(resp)))
     except Exception as e:
         print("Unable to get url {} due to {}.".format(url, e.__class__))
 
 
 async def main(urls, amount):
-    ret = await asyncio.gather(*[get(url) for url in urls])
+    throttler = Throttler(rate_limit=5)
+    ret = await asyncio.gather(*[get(url, throttler) for url in urls])
     print("Finalized all. ret is a list of len {} outputs.".format(len(ret)))
 
 

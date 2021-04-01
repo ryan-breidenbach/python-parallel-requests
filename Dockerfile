@@ -2,7 +2,7 @@ FROM python:3.8.8-buster
 
 WORKDIR /app
 
-RUN pip install aiohttp
+RUN pip install aiohttp asyncio_throttle
 
 COPY demo.py /app
 
