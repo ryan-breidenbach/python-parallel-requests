@@ -1,5 +1,7 @@
 import asyncio
 import aiohttp
+import requests
+import sys
 import time
 
 from asyncio_throttle import Throttler
@@ -106,7 +108,20 @@ http://www.googleweblight.com
 http://www.answers.yahoo.com"""
 
 
-async def get(url, throttler):
+async def get_parallel(url):
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url=url) as response:
+                resp = await response.read()
+                print("Successfully got url {} with response of length {}.".format(url, len(resp)))
+    except Exception as e:
+        print("Unable to get url {} due to {}.".format(url, e.__class__))
+
+async def parallel(urls):
+    ret = await asyncio.gather(*[get_parallel(url) for url in urls])
+    print("Finalized all. ret is a list of len {} outputs.".format(len(ret)))
+
+async def get_throttle(url, throttler):
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(url=url) as response:
@@ -116,18 +131,42 @@ async def get(url, throttler):
     except Exception as e:
         print("Unable to get url {} due to {}.".format(url, e.__class__))
 
-
-async def main(urls, amount):
+async def throttle(urls):
     throttler = Throttler(rate_limit=5)
-    ret = await asyncio.gather(*[get(url, throttler) for url in urls])
+    ret = await asyncio.gather(*[get_throttle(url, throttler) for url in urls])
     print("Finalized all. ret is a list of len {} outputs.".format(len(ret)))
 
+async def get_throttle(url, throttler):
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url=url) as response:
+                resp = await response.read()
+                async with throttler:
+                    print("Successfully got url {} with response of length {}.".format(url, len(resp)))
+    except Exception as e:
+        print("Unable to get url {} due to {}.".format(url, e.__class__))
+
+async def sequential(urls):
+    for url in urls:
+        resp = requests.get(url)
+        print("Successfully got url {} with response of length {}.".format(url, len(resp.content))
+)
 
 urls = websites.split("\n")
 amount = len(urls)
 
 start = time.time()
-asyncio.run(main(urls, amount))
+
+if sys.argv[1] == 'parallel':
+   asyncio.run(parallel(urls))
+elif sys.argv[1] == 'throttle':
+   asyncio.run(throttle(urls))
+elif sys.argv[1] == 'sequential':
+   asyncio.run(sequential(urls))
+else:
+   print(f"Unknown argument: {sys.argv[1]}")
+   exit(1)
+
 end = time.time()
 
 print("Took {} seconds to pull {} websites.".format(end - start, amount))
